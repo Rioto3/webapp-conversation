@@ -43,6 +43,7 @@ const Welcome: FC<IWelcomeProps> = ({
   const searchParams = useSearchParams()
   const hasVar = promptConfig.prompt_variables.length > 0
   const [isFold, setIsFold] = useState<boolean>(true)
+  const [hasAutoStarted, setHasAutoStarted] = useState<boolean>(false)
   const [inputs, setInputs] = useState<Record<string, any>>((() => {
     if (hasSetInputs)
       return savedInputs
@@ -58,8 +59,10 @@ const Welcome: FC<IWelcomeProps> = ({
     return res
   })())
 
-  // URLパラメータで自動チャット開始
+  // URLパラメータで自動チャット開始（一度だけ実行）
   useEffect(() => {
+    if (hasAutoStarted || hasSetInputs) return
+
     if (promptConfig && promptConfig.prompt_variables.length > 0) {
       // 全ての必須パラメータがURLで提供されているかチェック
       const allRequiredParamsProvided = promptConfig.prompt_variables
@@ -78,11 +81,12 @@ const Welcome: FC<IWelcomeProps> = ({
         })
         
         // 自動的にチャット開始
+        setHasAutoStarted(true)
         onStartChat(urlInputs)
         return
       }
     }
-  }, [promptConfig, searchParams, onStartChat])
+  }, [promptConfig, searchParams, onStartChat, hasAutoStarted, hasSetInputs])
 
   useEffect(() => {
     if (!savedInputs) {
@@ -375,6 +379,11 @@ const Welcome: FC<IWelcomeProps> = ({
       >
         {isPublicVersion ? renderHasSetInputsPublic() : renderHasSetInputsPrivate()}
       </div>)
+  }
+
+  // URLパラメータがある場合は何も表示しない（自動でチャット開始）
+  if (hasAutoStarted) {
+    return null
   }
 
   return (
