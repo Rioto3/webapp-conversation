@@ -2,6 +2,7 @@
 import type { FC } from 'react'
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'next/navigation'
 import TemplateVarPanel, { PanelTitle, VarOpBtnGroup } from '../value-panel'
 import FileUploaderInAttachmentWrapper from '../base/file-uploader-in-attachment'
 import s from './style.module.css'
@@ -39,6 +40,7 @@ const Welcome: FC<IWelcomeProps> = ({
 }) => {
   console.log(promptConfig)
   const { t } = useTranslation()
+  const searchParams = useSearchParams()
   const hasVar = promptConfig.prompt_variables.length > 0
   const [isFold, setIsFold] = useState<boolean>(true)
   const [inputs, setInputs] = useState<Record<string, any>>((() => {
@@ -48,17 +50,48 @@ const Welcome: FC<IWelcomeProps> = ({
     const res: Record<string, any> = {}
     if (promptConfig) {
       promptConfig.prompt_variables.forEach((item) => {
-        res[item.key] = ''
+        // URLパラメータから値を取得、なければ空文字
+        const urlValue = searchParams.get(item.key)
+        res[item.key] = urlValue || ''
       })
     }
     return res
   })())
+
+  // URLパラメータで自動チャット開始
+  useEffect(() => {
+    if (promptConfig && promptConfig.prompt_variables.length > 0) {
+      // 全ての必須パラメータがURLで提供されているかチェック
+      const allRequiredParamsProvided = promptConfig.prompt_variables
+        .filter(item => item.required !== false) // required がfalse以外（true or undefined）
+        .every(item => {
+          const urlValue = searchParams.get(item.key)
+          return urlValue && urlValue.trim() !== ''
+        })
+
+      if (allRequiredParamsProvided) {
+        // URLパラメータから inputs を構築
+        const urlInputs: Record<string, any> = {}
+        promptConfig.prompt_variables.forEach((item) => {
+          const urlValue = searchParams.get(item.key)
+          urlInputs[item.key] = urlValue || ''
+        })
+        
+        // 自動的にチャット開始
+        onStartChat(urlInputs)
+        return
+      }
+    }
+  }, [promptConfig, searchParams, onStartChat])
+
   useEffect(() => {
     if (!savedInputs) {
       const res: Record<string, any> = {}
       if (promptConfig) {
         promptConfig.prompt_variables.forEach((item) => {
-          res[item.key] = ''
+          // URLパラメータから値を取得、なければ空文字
+          const urlValue = searchParams.get(item.key)
+          res[item.key] = urlValue || ''
         })
       }
       setInputs(res)
@@ -66,7 +99,7 @@ const Welcome: FC<IWelcomeProps> = ({
     else {
       setInputs(savedInputs)
     }
-  }, [savedInputs])
+  }, [savedInputs, promptConfig, searchParams])
 
   const highLightPromoptTemplate = (() => {
     if (!promptConfig)
